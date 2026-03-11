@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { google } from 'googleapis';
+import { buildHowToUse, ROUTES } from './docs.js';
 
 dotenv.config();
 
@@ -72,29 +73,20 @@ function colToLetter(index) {
   return letter;
 }
 
-// ─── Route Registry ────────────────────────────────────────────────────────────
-// 所有功能都在這裡集中定義，新增功能時只需在此加一筆
-
-
-
-// 將路徑中的 :sheet 替換為 test（用於 / 入口說明）
-function toExamplePath(path) {
-  return path.replace(':sheet', 'test');
-}
-
 // ─── Routes ────────────────────────────────────────────────────────────────────
 
-// GET / — API 入口說明（只顯示 test 範例路徑）
+// GET / — API 入口導覽
 app.get('/', (req, res) => {
   res.json({
     message: 'Google Sheets API',
     version: '2.0.0',
-    endpoints: ROUTES.map(r => ({
-      name: r.name,
-      method: r.method,
-      path: toExamplePath(r.path),
-      description: r.description,
-    })),
+    usage: '透過 /api/:sheet 指定你要操作的 Sheet，進入後可查看該 Sheet 的可用方法。',
+    example: 'https://greenbox-sheets-api.vercel.app/api/glen',
+    notSureWhichSheet: {
+      hint: '如果不確定要連到哪個 Sheet，可以先進入測試區：',
+      url: 'https://greenbox-sheets-api.vercel.app/api/test',
+      warning: '⚠️ 這是測試用的 Sheet，資料僅供開發驗證。若需操作正式資料，請使用對應的正確路徑。',
+    },
   });
 });
 
@@ -118,12 +110,6 @@ app.get('/api/:sheet/tabsName', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-
-// ─── HowToUseForAgent 共用文件生成函式 ────────────────────────────────────────
-// tabs 為空 → 通用說明模式（用 :tab 佔位）
-// tabs 有值 → 鎖定模式（直接給出可用的完整 URL，明確告知 agent 只能動這些分頁）
-
-import { buildHowToUse } from './docs.js';
 
 // GET /api/:sheet/HowToUseForAgent — 通用說明（tab 用佔位符顯示）
 app.get('/api/:sheet/HowToUseForAgent', (req, res) => {
@@ -511,83 +497,3 @@ if (!process.env.VERCEL) {
 }
 
 export default app;
-const ROUTES = [
-  {
-    method: 'GET',
-    path: '/api/health',
-    name: 'health',
-    description: 'API運作狀況的健康檢查',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/HowToUseForAgent',
-    name: 'howToUse',
-    description: '回傳完整 API 使用說明（供 AI Agent 理解本 API 的所有功能與用法）',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/HowToUseForAgent/:tab',
-    name: 'howToUseForTab',
-    description: '回傳完整 API 使用說明，並將操作範圍鎖定於指定分頁。Agent 只能對 allowedTabs 內的分頁進行操作。支援多分頁：/HowToUseForAgent/分頁1/分頁2/...',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/tabsName',
-    name: 'getTabs',
-    description: '取得測試用 Sheet 的所有分頁名稱（原始名稱，未編碼）',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/tabRaw=:tab',
-    name: 'getTabRaw',
-    description: '取得指定分頁的原始資料（二維陣列，不處理標題），供 Agent 了解分頁結構',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/tab=:tab',
-    name: 'getTab',
-    description: '取得指定分頁的全部資料列（物件格式，第一行自動作為欄位名稱）',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/tab=:tab/row=:row',
-    name: 'getRow',
-    description: '取得指定分頁第 N 筆資料（row 從 1 開始，不含標題列）',
-  },
-  {
-    method: 'GET',
-    path: '/api/:sheet/tab=:tab/row=:startRow-:endRow',
-    name: 'getRows',
-    description: '取得指定分頁第 X～Y 筆資料（含頭尾，回傳陣列）',
-  },
-  {
-    method: 'POST',
-    path: '/api/:sheet/tab=:tab',
-    name: 'append',
-    description: '新增資料（單筆或多筆）。單筆: { values:[...] }，多筆陣列: { values:[[...],[...]] }，多筆物件: { rows:[{欄位:值},...] }',
-  },
-  {
-    method: 'POST',
-    path: '/api/:sheet/tab=:tab/col',
-    name: 'addColumn',
-    description: '在指定分頁的標題列末尾新增一個欄位  body: { name: "欄位名稱" }',
-  },
-  {
-    method: 'PUT',
-    path: '/api/:sheet/tab=:tab/col',
-    name: 'renameColumn',
-    description: '修改欄位名稱  body: { from: "舊名稱", to: "新名稱" }',
-  },
-  {
-    method: 'PUT',
-    path: '/api/:sheet/tab=:tab/row=:row',
-    name: 'updateRow',
-    description: '覆寫指定分頁第 N 筆資料  body: { values: [...] }',
-  },
-  {
-    method: 'DELETE',
-    path: '/api/:sheet/tab=:tab/row=:row',
-    name: 'deleteRow',
-    description: '清空指定分頁第 N 筆資料（列保留、內容清除）',
-  },
-];

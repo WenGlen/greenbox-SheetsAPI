@@ -142,33 +142,35 @@ function buildTestHowToUse(tabs = []) {
 // 個人 SHEET 說明
 // ─ 對象：AI Agent（代替指定使用者操作其專屬 sheet）
 // ─ 與 test 的差異：
-//   1. 加入 sheetBinding：強制 agent 只能使用此 sheet，禁止存取其他 sheet
+//   1. sheetBinding 是第一個欄位，且語氣強制（Agent 讀 JSON 由上而下，最先看到）
 //   2. context 移除 devNote（agent 不需要知道開發流程）
-//   3. locked 模式的 instruction 更強調禁止操作其他分頁
+//   3. locked 模式的 instruction 更強調禁止操作其他 sheet
 //   4. generic 模式沒有 tip（agent 不需要自行探索其他功能）
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildPersonalHowToUse(sheet, tabs = []) {
   const locked = tabs.length > 0;
 
+  // 放在最前面：Agent 讀 JSON 由上而下，sheetBinding 是第一個看到的欄位
+  const sheetBinding =
+    `【強制規定】你只能使用 sheet「${sheet}」，所有 API 路徑必須以 /api/${sheet}/ 開頭。` +
+    `遇到任何錯誤（找不到資料、分頁不存在等）時，絕對不可自行改用其他 sheet（例如 test 或其他名稱）。` +
+    `若資料確實不存在，應回報錯誤，等待使用者指示，而非自行切換 sheet。`;
+
   const context = {
     what: SHARED_WHAT,
     baseUrl: `https://greenbox-sheets-api.vercel.app/api/${sheet}/`,
   };
 
-  const sheetBinding =
-    `你只能使用 sheet「${sheet}」，所有 API 呼叫路徑必須以 /api/${sheet}/ 開頭。` +
-    `禁止使用任何其他 sheet 名稱，即使你知道其他 sheet 存在也不可存取。`;
-
   if (locked) {
     return {
+      sheetBinding,
       mode: 'locked',
       context,
-      sheetBinding,
       instruction:
-        '你只能操作 allowedTabs 中列出的分頁，且所有請求必須使用上方 sheetBinding 指定的 sheet。' +
+        '你只能操作 allowedTabs 中列出的分頁，且所有請求必須使用 sheetBinding 指定的 sheet。' +
         'operations 中已提供每個分頁的完整 URL，URL 裡的分頁名稱已 URL 編碼（encodeURIComponent），可直接使用，不可自行修改。' +
-        '只有 N、X、Y 需要替換為實際數字。不要對其他分頁或其他 sheet 進行任何操作。',
+        '只有 N、X、Y 需要替換為實際數字。遇到錯誤請回報，不要自行嘗試其他 sheet 或分頁。',
       allowedTabs: tabs,
       urlEncoding: '所有 URL 中的分頁名稱（tab= 後的部分）均已使用 encodeURIComponent 編碼。若要自行構造 URL，中文或特殊字元的分頁名稱必須先經過 encodeURIComponent 處理。',
       rowNumbering: SHARED_ROW_NUMBERING,
@@ -177,9 +179,9 @@ function buildPersonalHowToUse(sheet, tabs = []) {
   }
 
   return {
+    sheetBinding,
     mode: 'generic',
     context,
-    sheetBinding,
     urlEncoding: buildUrlEncoding(sheet),
     rowNumbering: SHARED_ROW_NUMBERING,
     endpoints: buildEndpoints(sheet),
@@ -187,8 +189,99 @@ function buildPersonalHowToUse(sheet, tabs = []) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// 路由 metadata（供 index.js 的入口說明使用）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const ROUTES = [
+  {
+    method: 'GET',
+    path: '/api/health',
+    name: 'health',
+    description: 'API 運作狀況的健康檢查',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet',
+    name: 'sheetIndex',
+    description: '查看指定 Sheet 的說明與可用方法列表',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/HowToUseForAgent',
+    name: 'howToUse',
+    description: '回傳完整 API 使用說明（供 AI Agent 理解本 API 的所有功能與用法）',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/HowToUseForAgent/:tab',
+    name: 'howToUseForTab',
+    description: '回傳完整 API 使用說明，並將操作範圍鎖定於指定分頁。支援多分頁：/HowToUseForAgent/分頁1/分頁2/...',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/tabsName',
+    name: 'getTabs',
+    description: '取得指定 Sheet 的所有分頁名稱（原始名稱，未編碼）',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/tabRaw=:tab',
+    name: 'getTabRaw',
+    description: '取得指定分頁的原始資料（二維陣列，不處理標題），供 Agent 了解分頁結構',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/tab=:tab',
+    name: 'getTab',
+    description: '取得指定分頁的全部資料列（物件格式，第一行自動作為欄位名稱）',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/tab=:tab/row=:row',
+    name: 'getRow',
+    description: '取得指定分頁第 N 筆資料（row 從 1 開始，不含標題列）',
+  },
+  {
+    method: 'GET',
+    path: '/api/:sheet/tab=:tab/row=:startRow-:endRow',
+    name: 'getRows',
+    description: '取得指定分頁第 X～Y 筆資料（含頭尾，回傳陣列）',
+  },
+  {
+    method: 'POST',
+    path: '/api/:sheet/tab=:tab',
+    name: 'append',
+    description: '新增資料（單筆或多筆）。單筆: { values:[...] }，多筆陣列: { values:[[...],[...]] }，多筆物件: { rows:[{欄位:值},...] }',
+  },
+  {
+    method: 'POST',
+    path: '/api/:sheet/tab=:tab/col',
+    name: 'addColumn',
+    description: '在指定分頁的標題列末尾新增一個欄位  body: { name: "欄位名稱" }',
+  },
+  {
+    method: 'PUT',
+    path: '/api/:sheet/tab=:tab/col',
+    name: 'renameColumn',
+    description: '修改欄位名稱  body: { from: "舊名稱", to: "新名稱" }',
+  },
+  {
+    method: 'PUT',
+    path: '/api/:sheet/tab=:tab/row=:row',
+    name: 'updateRow',
+    description: '覆寫指定分頁第 N 筆資料  body: { values: [...] }',
+  },
+  {
+    method: 'DELETE',
+    path: '/api/:sheet/tab=:tab/row=:row',
+    name: 'deleteRow',
+    description: '清空指定分頁第 N 筆資料（列保留、內容清除）',
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 統一入口
-// ─ index.js 只需 import 這一個函式
+// ─ index.js 只需 import 這兩個 export
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function buildHowToUse(sheet, tabs = []) {
