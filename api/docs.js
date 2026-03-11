@@ -26,6 +26,7 @@ function buildEndpoints(sheet) {
     { method: 'GET',    url: `/api/${sheet}/tab=:tab/row=N`,   description: '取得第 N 筆資料' },
     { method: 'GET',    url: `/api/${sheet}/tab=:tab/row=X-Y`, description: '取得第 X～Y 筆資料' },
     { method: 'POST',   url: `/api/${sheet}/createTab=:tab`,    description: '建立新分頁，:tab 為新分頁名稱（encodeURIComponent 編碼）' },
+    { method: 'POST',   url: `/api/${sheet}/copyFormat=:sourceTab/to=:destTab`, description: '複製分頁格式到另一個分頁  body: { source: { startRowIndex, endRowIndex, startColumnIndex, endColumnIndex }, destination: {...} }（0-based，end exclusive；destination 省略則與 source 同位置）' },
     { method: 'POST',   url: `/api/${sheet}/tab=:tab`,         description: '新增資料（單/多筆）  body: { values:[...或[[...]]] } 或 { rows:[{欄位名:值,...},...] }。注意：rows 格式的 key 必須與分頁標題列欄位名稱完全一致，不符的 key 將被忽略寫入空白。' },
     { method: 'POST',   url: `/api/${sheet}/tab=:tab/col=:col`,          description: '新增欄位（可同時填值）  body: { values: [...] }，values 為選填' },
     { method: 'PUT',    url: `/api/${sheet}/renameTab=:tab/to=:newTab`,  description: '改分頁名稱，:tab 為舊名稱，:newTab 為新名稱（均需 encodeURIComponent 編碼）' },
@@ -254,6 +255,12 @@ export const ROUTES = [
     path: '/api/:sheet/createTab=:tab',
     name: 'createTab',
     description: '建立新分頁，:tab 為新分頁名稱（encodeURIComponent 編碼）',
+  },
+  {
+    method: 'POST',
+    path: '/api/:sheet/copyFormat=:sourceTab/to=:destTab',
+    name: 'copyFormat',
+    description: '複製分頁格式到另一個分頁  body: { source: { startRowIndex, endRowIndex, startColumnIndex, endColumnIndex }, destination: {...} }（0-based，end exclusive；destination 省略則與 source 同位置）',
   },
   {
     method: 'POST',

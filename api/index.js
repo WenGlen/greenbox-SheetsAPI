@@ -543,6 +543,70 @@ app.put('/api/:sheet/moveTab=:tab/toIndex=:index', async (req, res) => {
   }
 });
 
+// POST /api/:sheet/copyFormat=:sourceTab/to=:destTab — 複製分頁格式到另一個分頁
+// body: { source: { startRowIndex, endRowIndex, startColumnIndex, endColumnIndex },
+//         destination: { startRowIndex, endRowIndex, startColumnIndex, endColumnIndex } }
+// （0-based，end exclusive；destination 若省略則與 source 相同位置）
+app.post('/api/:sheet/copyFormat=:sourceTab/to=:destTab', async (req, res) => {
+  try {
+    const { sheet, sourceTab, destTab } = req.params;
+    const { source, destination } = req.body;
+
+    if (!source || typeof source !== 'object') {
+      return res.status(400).json({ error: 'body 需包含 source: { startRowIndex, endRowIndex, startColumnIndex, endColumnIndex }' });
+    }
+
+    const dest = destination ?? source;
+
+    const validateRange = (r, name) => {
+      const fields = ['startRowIndex', 'endRowIndex', 'startColumnIndex', 'endColumnIndex'];
+      if (fields.some(f => typeof r[f] !== 'number' || !Number.isInteger(r[f]) || r[f] < 0)) {
+        return `${name} 的欄位需為 0-based 非負整數`;
+      }
+      if (r.endRowIndex <= r.startRowIndex || r.endColumnIndex <= r.startColumnIndex) {
+        return `${name} 的 end 必須大於 start`;
+      }
+      return null;
+    };
+
+    const srcErr = validateRange(source, 'source');
+    if (srcErr) return res.status(400).json({ error: srcErr });
+    const destErr = validateRange(dest, 'destination');
+    if (destErr) return res.status(400).json({ error: destErr });
+
+    const sheetId = getSheetId(sheet);
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      fields: 'sheets.properties',
+    });
+
+    const findSheet = title => spreadsheet.data.sheets.find(s => s.properties.title === title);
+    const srcSheet = findSheet(sourceTab);
+    const destSheet = findSheet(destTab);
+
+    if (!srcSheet) return res.status(404).json({ success: false, error: `找不到來源分頁「${sourceTab}」` });
+    if (!destSheet) return res.status(404).json({ success: false, error: `找不到目的分頁「${destTab}」` });
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      resource: {
+        requests: [{
+          copyPaste: {
+            source: { sheetId: srcSheet.properties.sheetId, ...source },
+            destination: { sheetId: destSheet.properties.sheetId, ...dest },
+            pasteType: 'PASTE_FORMAT',
+            pasteOrientation: 'NORMAL',
+          },
+        }],
+      },
+    });
+
+    res.json({ success: true, sheet, sourceTab, destTab, source, destination: dest });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/:sheet — 與入口相同的 API 說明，但顯示指定 sheet 名稱
 app.get('/api/:sheet', (req, res) => {
   const { sheet } = req.params;
