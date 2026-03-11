@@ -27,9 +27,9 @@ function buildEndpoints(sheet) {
     { method: 'GET',    url: `/api/${sheet}/tab=:tab/row=X-Y`, description: '取得第 X～Y 筆資料' },
     { method: 'POST',   url: `/api/${sheet}/createTab=:tab`,    description: '建立新分頁，:tab 為新分頁名稱（encodeURIComponent 編碼）' },
     { method: 'POST',   url: `/api/${sheet}/tab=:tab`,         description: '新增資料（單/多筆）  body: { values:[...或[[...]]] } 或 { rows:[{欄位名:值,...},...] }。注意：rows 格式的 key 必須與分頁標題列欄位名稱完全一致，不符的 key 將被忽略寫入空白。' },
-    { method: 'POST',   url: `/api/${sheet}/tab=:tab/col`,     description: '新增欄位（可同時填值）  body: { name: "欄位名稱", values: [...] }' },
-    { method: 'PUT',    url: `/api/${sheet}/renameTab=:tab/to=:newTab`, description: '改分頁名稱，:tab 為舊名稱，:newTab 為新名稱（均需 encodeURIComponent 編碼）' },
-    { method: 'PUT',    url: `/api/${sheet}/tab=:tab/col`,     description: '修改欄位名稱  body: { from: "舊名稱", to: "新名稱" }' },
+    { method: 'POST',   url: `/api/${sheet}/tab=:tab/col=:col`,          description: '新增欄位（可同時填值）  body: { values: [...] }，values 為選填' },
+    { method: 'PUT',    url: `/api/${sheet}/renameTab=:tab/to=:newTab`,  description: '改分頁名稱，:tab 為舊名稱，:newTab 為新名稱（均需 encodeURIComponent 編碼）' },
+    { method: 'PUT',    url: `/api/${sheet}/tab=:tab/col=:col/to=:newCol`, description: '修改欄位名稱，:col 為舊名稱，:newCol 為新名稱（均需 encodeURIComponent 編碼）' },
     { method: 'PUT',    url: `/api/${sheet}/tab=:tab/row=N`,   description: '更新第 N 筆資料  body: { values: [...] }' },
     { method: 'DELETE', url: `/api/${sheet}/tab=:tab/row=N`,   description: '清空第 N 筆資料' },
   ];
@@ -80,15 +80,14 @@ function buildOperations(sheet, tabs) {
       },
       addColumn: {
         method: 'POST',
-        url: `/api/${sheet}/tab=${encodedTab}/col`,
-        description: '在標題列末尾新增一個欄位，可同時填入各列的值。欄位名稱不可與現有欄位重複',
-        body: '{ "name": "新欄位名稱", "values": ["row1值", "row2值", ...] }，values 為選填',
+        url: `/api/${sheet}/tab=${encodedTab}/col=:col`,
+        description: '在標題列末尾新增一個欄位，:col 替換為欄位名稱（encodeURIComponent 編碼）。欄位名稱不可與現有欄位重複',
+        body: '{ "values": ["row1值", "row2值", ...] }，values 為選填',
       },
       renameColumn: {
         method: 'PUT',
-        url: `/api/${sheet}/tab=${encodedTab}/col`,
-        description: '修改欄位名稱。from 必須是現有欄位，to 不可與現有欄位重複',
-        body: '{ "from": "舊欄位名稱", "to": "新欄位名稱" }',
+        url: `/api/${sheet}/tab=${encodedTab}/col=:col/to=:newCol`,
+        description: '修改欄位名稱，:col 為舊名稱，:newCol 為新名稱（均需 encodeURIComponent 編碼）。舊名稱必須存在，新名稱不可重複',
       },
     };
   }
@@ -263,9 +262,9 @@ export const ROUTES = [
   },
   {
     method: 'POST',
-    path: '/api/:sheet/tab=:tab/col',
+    path: '/api/:sheet/tab=:tab/col=:col',
     name: 'addColumn',
-    description: '在指定分頁的標題列末尾新增一個欄位  body: { name: "欄位名稱" }',
+    description: '在指定分頁的標題列末尾新增一個欄位，body 可選填 { values: [...] }',
   },
   {
     method: 'PUT',
@@ -275,9 +274,9 @@ export const ROUTES = [
   },
   {
     method: 'PUT',
-    path: '/api/:sheet/tab=:tab/col',
+    path: '/api/:sheet/tab=:tab/col=:col/to=:newCol',
     name: 'renameColumn',
-    description: '修改欄位名稱  body: { from: "舊名稱", to: "新名稱" }',
+    description: '修改欄位名稱，:col 為舊名稱，:newCol 為新名稱（均需 encodeURIComponent 編碼）',
   },
   {
     method: 'PUT',

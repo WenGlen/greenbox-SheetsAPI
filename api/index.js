@@ -316,16 +316,13 @@ app.post('/api/:sheet/tab=:tab', async (req, res) => {
   }
 });
 
-// POST /api/:sheet/tab=:tab/col — 在標題列末尾新增欄位，可同時填入各列的值
-// body: { name: "欄位名稱", values: ["row1值", "row2值", ...] }  values 為選填
-app.post('/api/:sheet/tab=:tab/col', async (req, res) => {
+// POST /api/:sheet/tab=:tab/col=:col — 在標題列末尾新增欄位，可同時填入各列的值
+// body: { values: ["row1值", "row2值", ...] }  values 為選填
+app.post('/api/:sheet/tab=:tab/col=:col', async (req, res) => {
   try {
-    const { sheet, tab } = req.params;
-    const { name, values } = req.body;
+    const { sheet, tab, col } = req.params;
+    const { values } = req.body;
 
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'body 需包含 name: "欄位名稱"' });
-    }
     if (values !== undefined && !Array.isArray(values)) {
       return res.status(400).json({ error: 'values 若提供需為陣列' });
     }
@@ -336,14 +333,14 @@ app.post('/api/:sheet/tab=:tab/col', async (req, res) => {
     const headerRows = await getRange(sheetId, `${tab}!1:1`);
     const headers = headerRows[0] ?? [];
 
-    if (headers.includes(name.trim())) {
-      return res.status(400).json({ error: `欄位「${name}」已存在` });
+    if (headers.includes(col)) {
+      return res.status(400).json({ error: `欄位「${col}」已存在` });
     }
 
     const nextCol = colToLetter(headers.length);
 
     // 組合要寫入的資料：第一格是標題，後續是各列的值（row 2 開始）
-    const writeData = [[name.trim()]];
+    const writeData = [[col]];
     if (values && values.length > 0) {
       values.forEach(v => writeData.push([v ?? '']));
     }
@@ -359,7 +356,7 @@ app.post('/api/:sheet/tab=:tab/col', async (req, res) => {
       success: true,
       sheet,
       tab,
-      addedColumn: name.trim(),
+      addedColumn: col,
       position: nextCol,
       filledRows: values ? values.length : 0,
       result: result.data,
@@ -369,30 +366,21 @@ app.post('/api/:sheet/tab=:tab/col', async (req, res) => {
   }
 });
 
-// PUT /api/:sheet/tab=:tab/col — 修改欄位名稱
-// body: { from: "舊欄位名稱", to: "新欄位名稱" }
-app.put('/api/:sheet/tab=:tab/col', async (req, res) => {
+// PUT /api/:sheet/tab=:tab/col=:col/to=:newCol — 修改欄位名稱
+app.put('/api/:sheet/tab=:tab/col=:col/to=:newCol', async (req, res) => {
   try {
-    const { sheet, tab } = req.params;
-    const { from, to } = req.body;
-
-    if (!from || typeof from !== 'string' || !from.trim()) {
-      return res.status(400).json({ error: 'body 需包含 from: "舊欄位名稱"' });
-    }
-    if (!to || typeof to !== 'string' || !to.trim()) {
-      return res.status(400).json({ error: 'body 需包含 to: "新欄位名稱"' });
-    }
+    const { sheet, tab, col, newCol } = req.params;
 
     const sheetId = getSheetId(sheet);
     const headerRows = await getRange(sheetId, `${tab}!1:1`);
     const headers = headerRows[0] ?? [];
 
-    const colIndex = headers.indexOf(from.trim());
+    const colIndex = headers.indexOf(col);
     if (colIndex === -1) {
-      return res.status(404).json({ error: `找不到欄位「${from}」` });
+      return res.status(404).json({ error: `找不到欄位「${col}」` });
     }
-    if (headers.includes(to.trim())) {
-      return res.status(400).json({ error: `欄位「${to}」已存在` });
+    if (headers.includes(newCol)) {
+      return res.status(400).json({ error: `欄位「${newCol}」已存在` });
     }
 
     const colLetter = colToLetter(colIndex);
@@ -400,10 +388,10 @@ app.put('/api/:sheet/tab=:tab/col', async (req, res) => {
       spreadsheetId: sheetId,
       range: `${tab}!${colLetter}1`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[to.trim()]] },
+      resource: { values: [[newCol]] },
     });
 
-    res.json({ success: true, sheet, tab, from: from.trim(), to: to.trim(), column: colLetter });
+    res.json({ success: true, sheet, tab, from: col, to: newCol, column: colLetter });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
