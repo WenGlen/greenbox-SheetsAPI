@@ -123,13 +123,15 @@ app.get('/api/:sheet/tabsName', async (req, res) => {
 // tabs 為空 → 通用說明模式（用 :tab 佔位）
 // tabs 有值 → 鎖定模式（直接給出可用的完整 URL，明確告知 agent 只能動這些分頁）
 
-const API_CONTEXT = {
-  what: '這是一個串接 Google Sheets 的 API，讓程式可以透過 HTTP 讀寫試算表資料。',
-  currentSheet: '目前串接的 Sheet 為開發測試用途（/api/test/...），供開發期間驗證功能使用。',
-  deployedAt: 'https://greenbox-sheets-api.vercel.app',
-  devNote:
-    '開發完成後，若需要將路徑切換至正式 Sheet，請通知 Glen 協助更新 API 路徑與對應的 Sheet ID。',
-};
+function buildApiContext(sheet) {
+  return {
+    what: '這是一個串接 Google Sheets 的 API，讓程式可以透過 HTTP 讀寫試算表資料。',
+    currentSheet: `目前使用的 Sheet 為「${sheet}」，所有操作路徑皆以 /api/${sheet}/... 開頭。`,
+    deployedAt: 'https://greenbox-sheets-api.vercel.app',
+    devNote:
+      '開發完成後，若需要將路徑切換至正式 Sheet，請通知 Glen 協助更新 API 路徑與對應的 Sheet ID。',
+  };
+}
 
 function buildHowToUse(tabs = [], sheet = 'test') {
   const locked = tabs.length > 0;
@@ -195,7 +197,8 @@ function buildHowToUse(tabs = [], sheet = 'test') {
 
     return {
       mode: 'locked',
-      context: API_CONTEXT,
+      context: buildApiContext(sheet),
+      sheetBinding: `你只能使用 sheet「${sheet}」，所有 API 呼叫路徑必須以 /api/${sheet}/ 開頭。禁止使用任何其他 sheet 名稱（例如 /api/test/、/api/glen/ 等），即使你知道其他 sheet 存在也不可存取。`,
       instruction:
         '你只能操作 allowedTabs 中列出的分頁。' +
         'operations 中已提供每個分頁的完整 URL，URL 裡的分頁名稱已 URL 編碼（encodeURIComponent），可直接使用，不可自行修改。' +
@@ -210,7 +213,8 @@ function buildHowToUse(tabs = [], sheet = 'test') {
   // 通用模式：完整說明所有功能，tab 用 :tab 佔位
   return {
     mode: 'generic',
-    context: API_CONTEXT,
+    context: buildApiContext(sheet),
+    sheetBinding: `你只能使用 sheet「${sheet}」，所有 API 呼叫路徑必須以 /api/${sheet}/ 開頭。禁止使用任何其他 sheet 名稱（例如 /api/test/、/api/abc/ 等），即使你知道其他 sheet 存在也不可存取。`,
     urlEncoding: `當分頁名稱包含中文或特殊字元時，必須使用 encodeURIComponent 編碼後再放入 URL。例：分頁「測試」→ encodeURIComponent("測試") = "%E6%B8%AC%E8%A9%A6"，URL 為 /api/${sheet}/tab=%E6%B8%AC%E8%A9%A6。建議先呼叫 /api/${sheet}/tabsName 取得分頁名稱，再自行編碼組合 URL。`,
     rowNumbering: 'row 從 1 開始，不含標題列。row=1 是第一筆資料（Google Sheets 第 2 行）。',
     endpoints: [
@@ -578,6 +582,22 @@ app.delete('/api/:sheet/tab=:tab/row=:row', async (req, res) => {
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// GET /api/:sheet — 與入口相同的 API 說明，但顯示指定 sheet 名稱
+app.get('/api/:sheet', (req, res) => {
+  const { sheet } = req.params;
+  res.json({
+    message: 'Google Sheets API',
+    version: '2.0.0',
+    sheet,
+    endpoints: ROUTES.map(r => ({
+      name: r.name,
+      method: r.method,
+      path: r.path.replace(':sheet', sheet),
+      description: r.description,
+    })),
+  });
 });
 
 // ─── 404 & Error handlers ──────────────────────────────────────────────────────
