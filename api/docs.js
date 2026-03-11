@@ -25,8 +25,10 @@ function buildEndpoints(sheet) {
     { method: 'GET',    url: `/api/${sheet}/tab=:tab`,         description: '取得分頁全部資料列，:tab 為 encodeURIComponent 編碼後的分頁名稱' },
     { method: 'GET',    url: `/api/${sheet}/tab=:tab/row=N`,   description: '取得第 N 筆資料' },
     { method: 'GET',    url: `/api/${sheet}/tab=:tab/row=X-Y`, description: '取得第 X～Y 筆資料' },
+    { method: 'POST',   url: `/api/${sheet}/createTab=:tab`,    description: '建立新分頁，:tab 為新分頁名稱（encodeURIComponent 編碼）' },
     { method: 'POST',   url: `/api/${sheet}/tab=:tab`,         description: '新增資料（單/多筆）  body: { values:[...或[[...]]] } 或 { rows:[{欄位名:值,...},...] }。注意：rows 格式的 key 必須與分頁標題列欄位名稱完全一致，不符的 key 將被忽略寫入空白。' },
     { method: 'POST',   url: `/api/${sheet}/tab=:tab/col`,     description: '新增欄位（可同時填值）  body: { name: "欄位名稱", values: [...] }' },
+    { method: 'PUT',    url: `/api/${sheet}/renameTab=:tab/to=:newTab`, description: '改分頁名稱，:tab 為舊名稱，:newTab 為新名稱（均需 encodeURIComponent 編碼）' },
     { method: 'PUT',    url: `/api/${sheet}/tab=:tab/col`,     description: '修改欄位名稱  body: { from: "舊名稱", to: "新名稱" }' },
     { method: 'PUT',    url: `/api/${sheet}/tab=:tab/row=N`,   description: '更新第 N 筆資料  body: { values: [...] }' },
     { method: 'DELETE', url: `/api/${sheet}/tab=:tab/row=N`,   description: '清空第 N 筆資料' },
@@ -249,6 +251,12 @@ export const ROUTES = [
   },
   {
     method: 'POST',
+    path: '/api/:sheet/createTab=:tab',
+    name: 'createTab',
+    description: '建立新分頁，:tab 為新分頁名稱（encodeURIComponent 編碼）',
+  },
+  {
+    method: 'POST',
     path: '/api/:sheet/tab=:tab',
     name: 'append',
     description: '新增資料（單筆或多筆）。單筆: { values:[...] }，多筆陣列: { values:[[...],[...]] }，多筆物件: { rows:[{欄位:值},...] }',
@@ -258,6 +266,12 @@ export const ROUTES = [
     path: '/api/:sheet/tab=:tab/col',
     name: 'addColumn',
     description: '在指定分頁的標題列末尾新增一個欄位  body: { name: "欄位名稱" }',
+  },
+  {
+    method: 'PUT',
+    path: '/api/:sheet/renameTab=:tab/to=:newTab',
+    name: 'renameTab',
+    description: '改分頁名稱，:tab 為舊名稱，:newTab 為新名稱（均需 encodeURIComponent 編碼）',
   },
   {
     method: 'PUT',

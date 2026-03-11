@@ -462,6 +462,61 @@ app.delete('/api/:sheet/tab=:tab/row=:row', async (req, res) => {
   }
 });
 
+// POST /api/:sheet/createTab=:tab — 建立新分頁
+app.post('/api/:sheet/createTab=:tab', async (req, res) => {
+  try {
+    const { sheet, tab } = req.params;
+    const sheetId = getSheetId(sheet);
+    const result = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      resource: {
+        requests: [{ addSheet: { properties: { title: tab } } }],
+      },
+    });
+
+    const newSheet = result.data.replies[0].addSheet.properties;
+    res.json({ success: true, sheet, tab: newSheet.title, sheetId: newSheet.sheetId });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// PUT /api/:sheet/renameTab=:tab/to=:newTab — 改分頁名稱
+app.put('/api/:sheet/renameTab=:tab/to=:newTab', async (req, res) => {
+  try {
+    const { sheet, tab, newTab } = req.params;
+    const to = newTab;
+
+    const sheetId = getSheetId(sheet);
+
+    // 先取得目標分頁的 sheetId（數字 ID）
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      fields: 'sheets.properties',
+    });
+    const found = spreadsheet.data.sheets.find(s => s.properties.title === tab);
+    if (!found) {
+      return res.status(404).json({ success: false, error: `找不到分頁「${tab}」` });
+    }
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      resource: {
+        requests: [{
+          updateSheetProperties: {
+            properties: { sheetId: found.properties.sheetId, title: to },
+            fields: 'title',
+          },
+        }],
+      },
+    });
+
+    res.json({ success: true, sheet, from: tab, to });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/:sheet — 與入口相同的 API 說明，但顯示指定 sheet 名稱
 app.get('/api/:sheet', (req, res) => {
   const { sheet } = req.params;
