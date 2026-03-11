@@ -288,3 +288,10 @@ export function buildHowToUse(sheet, tabs = []) {
   if (sheet === SHEET_TEST) return buildTestHowToUse(tabs);
   return buildPersonalHowToUse(sheet, tabs);
 }
+
+export function buildSheetNote(sheet) {
+  if (sheet === SHEET_TEST) {
+    return '⚠️ 你目前在測試用 Sheet（test），資料僅供開發驗證。若要操作其他正式 Sheet，請改用對應的 /api/:sheet 路徑。';
+  }
+  return `【強制規定】你只能使用 sheet「${sheet}」，所有 API 路徑必須以 /api/${sheet}/ 開頭。遇到任何錯誤時，絕對不可自行改用其他 sheet（例如 test 或其他名稱），應回報錯誤並等待使用者指示。`;
+}

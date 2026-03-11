@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { google } from 'googleapis';
-import { buildHowToUse, ROUTES } from './docs.js';
+import { buildHowToUse, buildSheetNote, ROUTES } from './docs.js';
 
 dotenv.config();
 
@@ -466,6 +466,7 @@ app.delete('/api/:sheet/tab=:tab/row=:row', async (req, res) => {
 app.get('/api/:sheet', (req, res) => {
   const { sheet } = req.params;
   res.json({
+    sheetNote: buildSheetNote(sheet),
     message: 'Google Sheets API',
     version: '2.0.0',
     sheet,
